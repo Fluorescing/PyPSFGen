@@ -11,7 +11,7 @@ A fast Python simulated-molecule/point-spread-function (PSF) image generator.
 
 ## Motivation
 
-<!--A short description of the motivation behind the creation and maintenance of the project. This should explain **why** the project exists.-->
+This project is meant to be a stepping stone for work on a molecule-localization project.  It allows for creating single- or multi molecule images from the command line quickly, making batched tests simplier.  It is also written in Python 2.7 for simple code and compatibility--all packages used can be installed via pip.
 
 ## Installation
 
