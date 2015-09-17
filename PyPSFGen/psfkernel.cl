@@ -1,32 +1,36 @@
+
 // BesselJ1 Function
-// @param x
 inline float BesselJ1(float x)
 {
-    float ax = (x < 0.0f) ? -x : x;
-    
+    float y = (x < 0.0f) ? -x : x;
 
-    if (ax < 3.0f)
+    if (y < 3.945f)
     {
-        float x2  =   x * x;
-        float x3  =  x2 * x;
-        float x5  =  x3 * x2;
-        float x7  =  x5 * x2;
-        float x9  =  x7 * x2;
-        float x11 =  x9 * x2;
-        float x13 =  x11* x2;
+        float x2  =  x   * x;
+        float x3  =  x2  * x;
+        float x5  =  x3  * x2;
+        float x7  =  x5  * x2;
+        float x9  =  x7  * x2;
+        float x11 =  x9  * x2;
+        float x13 =  x11 * x2;
         
-        return x/2.0f - x3/16.0f + x5/384.0f - x7/18432.0f 
-                     + x9/1.47456e6f - x11/1.769472e8f + x13/2.97271296e10f;
+        return x/2.0f 
+             - x3/16.0f 
+             + x5/384.0f 
+             - x7/18432.0f 
+             + x9/1.47456e6f 
+             - x11/1.769472e8f 
+             + x13/2.97271296e10f;
     } 
     else 
     {
-        float ax2 = ax * ax;
-        float ax3 = ax2 * ax;
-        float ax4 = ax2 * ax2;
+        float y2 = y  * y;
+        float y3 = y2 * y;
+        float y4 = y2 * y2;
 
-        float answer = native_sqrt(2.0f / (M_PI * ax))
-                     * (1.0f + 3.0f / (16.0f * ax2) - 99.0f / (512.0f * ax4))
-                     * native_cos(ax - 3.0f * M_PI / 4.0f + 3.0f / (8.0f * ax) - 21.0f / (128.0f * ax3));
+        float answer = native_sqrt(2.0f / (M_PI * y))
+                     * (1.0f + 3.0f / (16.0f * y2) - 99.0f / (512.0f * y4))
+                     * native_cos(y - 3.0f * M_PI / 4.0f + 3.0f / (8.0f * y) - 21.0f / (128.0f * y3));
 
         if (x < 0.0f)
             answer = -answer;
@@ -34,12 +38,6 @@ inline float BesselJ1(float x)
     }
 }
 
-// @param F the pixel width
-// @param P the number of particles
-// @param px an array of the x-coordinates of the particles
-// @param py an array of the y-coordinates of the particles
-// @param N an array of the number of photons of the particle
-// @param image an image buffer that will contain the perfect (w/o noise) PSF
 kernel void pixelPSF(
         const float k, 
         const float a,
@@ -99,5 +97,6 @@ kernel void pixelPSF(
         }
     }
 
+    // store the average of all samples
     image[m + n * W + img * W * H] = Gsum / (float) (F * F);
 }
