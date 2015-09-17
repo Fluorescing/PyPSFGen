@@ -7,8 +7,6 @@ import math as m
 import random as r
 import ujson
 import tifffile as tiff
-import matplotlib.pyplot as plt
-import matplotlib.cm as cm
 
 def cmdline_args():
   parser = argparse.ArgumentParser(
