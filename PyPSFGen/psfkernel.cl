@@ -28,9 +28,9 @@ inline float BesselJ1(float x)
         float y3 = y2 * y;
         float y4 = y2 * y2;
 
-        float answer = native_sqrt(2.0f / (M_PI * y))
+        float answer = native_sqrt(2.0f / (3.14159265359f * y))
                      * (1.0f + 3.0f / (16.0f * y2) - 99.0f / (512.0f * y4))
-                     * native_cos(y - 3.0f * M_PI / 4.0f + 3.0f / (8.0f * y) - 21.0f / (128.0f * y3));
+                     * native_cos(y - 3.0f * 3.14159265359f / 4.0f + 3.0f / (8.0f * y) - 21.0f / (128.0f * y3));
 
         if (x < 0.0f)
             answer = -answer;
