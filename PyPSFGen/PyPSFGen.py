@@ -79,7 +79,8 @@ def main():
   scenarios = source['scenarios']
   scenario_count = len(scenarios)
 
-  """# sample number of particles
+  # sample number of particles
+  len_s = scenario_count
   n = float(len_s) / (0.05**2 * (float(len_s) - 1.0) + 1.0)
   len_p_approx = 0
   for i in xrange(int(n)):
@@ -92,75 +93,97 @@ def main():
   particle_size = len_s * len_p_approx;
   mem_required = 4 * (4 * particle_size + output_size + 2 * len_s) + 7 * 4
 
-  print "Estimated Memory Usage:", mem_required / 1024.0 / 1024.0, "MBytes" """
+  print "Estimated Memory Usage:", mem_required / 1024.0 / 1024.0, "MBytes"
 
-  current_index = 0
-  pointer = []
-  count = []
-  X = []
-  Y = []
-  N = []
-  W = []
+  divide = 16
+  chunks = int(np.ceil(mem_required / 1024.0 / 1024.0 / divide))
+  s_div = int(np.ceil(scenario_count / chunks))
+
+  print "Number of Chunks:", chunks
+  print "Estimated Size of Chunks:", divide, "MBytes"
+  print "Scenarios Per Chunk:", s_div
+
+  expected = np.array([])#np.zeros(scenario_count * width * height, dtype=np.float32)
   
-  for scenario in scenarios:
-    # store the number of particles
-    count.append(len(scenario['particles']))
-
-    # store a pointer to the particles
-    pointer.append(current_index)
-
-    # increment index
-    current_index += len(scenario['particles'])
-
-    # store particle data
-    for particle in scenario['particles']:
-      X.append(particle['x'])
-      Y.append(particle['y'])
-      N.append(particle['intensity'])
-      W.append(particle['width'])
-
-  # convert to numpy arrays
-  pointer = np.array(pointer, dtype=np.int32)
-  count   = np.array(count,   dtype=np.int32)
-  
-  X = np.array(X, dtype=np.float32)
-  Y = np.array(Y, dtype=np.float32)
-  N = np.array(N, dtype=np.float32)
-  W = np.array(W, dtype=np.float32)
-  
-  expected = np.zeros(scenario_count * width * height, dtype=np.float32)
-
   context = cl.create_some_context()
   queue = cl.CommandQueue(context)
-
-  mf = cl.mem_flags
-  pointer_buf = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=pointer.astype(np.int32))
-  count_buf   = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=count.astype(np.int32)) 
-  
-  X_buf = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=X.astype(np.float32))
-  Y_buf = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=Y.astype(np.float32))
-  N_buf = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=N.astype(np.float32))
-  W_buf = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=W.astype(np.float32))
-  
-  dest_buf = cl.Buffer(context, mf.WRITE_ONLY, 4 * scenario_count * width * height)
-
-  print "Enqueuing job to OpenCL..."
-  print 
 
   with open("psfkernel.cl", "r") as f:
     prg = cl.Program(context, f.read()).build()
 
-  # call the kernel
-  event = prg.pixelPSF(queue, (scenario_count, width, height,), None, 
-            np.float32(k), np.float32(usable), np.float32(gap), 
-            np.int32(width), np.int32(height), np.int32(ssedge), 
-            pointer_buf, count_buf, 
-            X_buf, Y_buf, N_buf, W_buf, dest_buf)
+  for chunk in xrange(chunks):
+    
+    sc_count = 0
+    current_index = 0
+    pointer = []
+    count = []
+    X = []
+    Y = []
+    N = []
+    W = []
 
-  # wait and then grab the data
-  event.wait()
+    for n in xrange(s_div*chunk, s_div*chunk + s_div):
+
+      if n > scenario_count:
+        break
+
+      scenario = scenarios[n]
+      sc_count = sc_count + 1
+
+      # store the number of particles
+      count.append(len(scenario['particles']))
+
+      # store a pointer to the particles
+      pointer.append(current_index)
+
+      # increment index
+      current_index += len(scenario['particles'])
+
+      # store particle data
+      for particle in scenario['particles']:
+        X.append(particle['x'])
+        Y.append(particle['y'])
+        N.append(particle['intensity'])
+        W.append(particle['width'])
+
+    # convert to numpy arrays
+    pointer = np.array(pointer, dtype=np.int32)
+    count   = np.array(count,   dtype=np.int32)
   
-  cl.enqueue_copy(queue, expected, dest_buf)
+    X = np.array(X, dtype=np.float32)
+    Y = np.array(Y, dtype=np.float32)
+    N = np.array(N, dtype=np.float32)
+    W = np.array(W, dtype=np.float32)
+  
+    output_data = np.zeros(sc_count * width * height, dtype=np.float32)  
+
+    mf = cl.mem_flags
+    pointer_buf = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=pointer.astype(np.int32))
+    count_buf   = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=count.astype(np.int32)) 
+  
+    X_buf = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=X.astype(np.float32))
+    Y_buf = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=Y.astype(np.float32))
+    N_buf = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=N.astype(np.float32))
+    W_buf = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=W.astype(np.float32))
+  
+    dest_buf = cl.Buffer(context, mf.WRITE_ONLY, 4 * sc_count * width * height)
+
+    print "Enqueuing job to OpenCL..."
+    print 
+
+    # call the kernel
+    event = prg.pixelPSF(queue, (sc_count, width, height,), None, 
+              np.float32(k), np.float32(usable), np.float32(gap), 
+              np.int32(width), np.int32(height), np.int32(ssedge), 
+              pointer_buf, count_buf, 
+              X_buf, Y_buf, N_buf, W_buf, dest_buf)
+
+    # wait and then grab the data
+    event.wait()
+  
+    cl.enqueue_copy(queue, output_data, dest_buf)
+
+    expected = np.append(expected, output_data)
 
   print "Finalizing images..."
   print 
